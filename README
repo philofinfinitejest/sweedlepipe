@@ -1,0 +1,9 @@
+Bottle/gevent based website, for analyzing twitter relationships.
+
+Dependencies:
+requests
+bottle
+gevent
+twitlist
+
+Requires config file for twitter oauth keys.
