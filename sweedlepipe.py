@@ -77,8 +77,8 @@ def login():
 def generate():
     session = request.environ.get('beaker.session')
     #TODO: remove when done testing
-    session["groups"] = None
-    session.persist()
+    #session["groups"] = None
+    #session.persist()
     groups = session.get("groups")
     if groups is not None:
         bottle.redirect('/groups')
@@ -109,7 +109,6 @@ def progress():
 @view('groups')
 def groups():
     session = request.environ.get('beaker.session')
-    error = False
     groups = session.get("groups")
     if not groups:
         user_oauth_token = session.get("user_oauth_token")
@@ -142,10 +141,30 @@ def groupdetails(group_id):
     user_details = group["user_details"]
     return {"user_details": user_details, "similarities": similarities}
 
+@route('/makelist/<group_id:int>')
+def makelist(group_id):
+    session = request.environ.get('beaker.session')
+    groups = session.get("groups")
+    if groups is None:
+        return
+    group = groups.get(group_id)
+    name = group["description"]
+    userids = list(user["id"] for user in group["user_details"])
+    print userids
+    user_oauth_token = session.get("user_oauth_token")
+    user_oauth_secret = session.get("user_oauth_secret")
+    screen_name = session.get("screen_name")
+    api = twitlist.TwitterRestAPI(oauth_token=user_oauth_token, oauth_secret=user_oauth_secret, cache=CACHE)
+    response = api.makelist(name, "Made by sweedlepipe.", userids)
+    url = "http://www.twitter.com%s" % (response["uri"])
+    bottle.redirect(url)
+
 
 ############################
 # Utilities
 def run_grouper(user_oauth_token, user_oauth_secret, screen_name):
+    if user_oauth_token is None or user_oauth_secret is None:
+        return list(tuple())
     api = twitlist.TwitterRestAPI(oauth_token=user_oauth_token, oauth_secret=user_oauth_secret, cache=CACHE)
     grouper = twitlist.Grouper(api)
     groups = grouper.generate_groups(user_name=screen_name, notification_hook=ProgressNotifier())
