@@ -1,3 +1,4 @@
+from gevent.wsgi import WSGIServer
 from gevent import monkey
 monkey.patch_all()
 import bottle
@@ -7,25 +8,6 @@ import requests
 import time
 from twitlist import twitlist, atrest
 import config
-
-############################
-# Configuration
-# logging config
-logging.basicConfig(format='%(asctime)s %(message)s',level=logging.DEBUG)
-# session configuration
-from beaker.middleware import SessionMiddleware
-session_opts = {
-    'session.type': 'file',
-    'session.cookie_expires': 3000,
-    'session.data_dir': './data',
-    'session.auto': True
-}
-app = SessionMiddleware(bottle.app(), session_opts)
-# cache backend configuration
-CACHE = atrest.Cache(atrest.FileBackend('/tmp/atrest_cache'), 3600)
-# oauth configuration
-twitlist.TwitterOAuthHandler.config_oauth_handler(config.CONSUMER_KEY, config.CONSUMER_SECRET)
-bottle.debug(True)
 
 ########################
 # Routes
@@ -77,8 +59,8 @@ def login():
 def generate():
     session = request.environ.get('beaker.session')
     #TODO: remove when done testing
-    #session["groups"] = None
-    #session.persist()
+    session["groups"] = None
+    session.persist()
     groups = session.get("groups")
     if groups is not None:
         bottle.redirect('/groups')
@@ -150,7 +132,6 @@ def makelist(group_id):
     group = groups.get(group_id)
     name = group["description"]
     userids = list(user["id"] for user in group["user_details"])
-    print userids
     user_oauth_token = session.get("user_oauth_token")
     user_oauth_secret = session.get("user_oauth_secret")
     screen_name = session.get("screen_name")
@@ -197,5 +178,22 @@ class ProgressNotifier(object):
         self.session.persist()
     
 
-run(app=app, host='localhost', port=8080, reloader=True, server='gevent')
-
+############################
+# Configuration
+# logging config
+logging.basicConfig(format='%(asctime)s %(message)s',level=logging.DEBUG)
+# session configuration
+from beaker.middleware import SessionMiddleware
+session_opts = {
+    'session.type': 'file',
+    'session.cookie_expires': 3000,
+    'session.data_dir': './data',
+    'session.auto': True
+}
+# cache backend configuration
+CACHE = atrest.Cache(atrest.FileBackend('/tmp/atrest_cache'), 3600)
+# oauth configuration
+twitlist.TwitterOAuthHandler.config_oauth_handler(config.CONSUMER_KEY, config.CONSUMER_SECRET)
+application = SessionMiddleware(bottle.app(), session_opts)
+if __name__ == '__main__':
+    run(app=application, host='localhost', port=3000, reloader=True, server='gevent')
