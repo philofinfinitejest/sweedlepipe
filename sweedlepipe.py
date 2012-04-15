@@ -59,8 +59,8 @@ def login():
 def generate():
     session = request.environ.get('beaker.session')
     #TODO: remove when done testing
-    session["groups"] = None
-    session.persist()
+    #session["groups"] = None
+    #session.persist()
     groups = session.get("groups")
     if groups is not None:
         bottle.redirect('/groups')
@@ -196,4 +196,4 @@ CACHE = atrest.Cache(atrest.FileBackend('/tmp/atrest_cache'), 3600)
 twitlist.TwitterOAuthHandler.config_oauth_handler(config.CONSUMER_KEY, config.CONSUMER_SECRET)
 application = SessionMiddleware(bottle.app(), session_opts)
 if __name__ == '__main__':
-    run(app=application, host='localhost', port=3000, reloader=True, server='gevent')
+    run(app=application, host='localhost', port=3000, server='gevent')
