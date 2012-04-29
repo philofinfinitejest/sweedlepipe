@@ -2,7 +2,8 @@ from gevent.wsgi import WSGIServer
 from gevent import monkey
 monkey.patch_all()
 import bottle
-from bottle import route, run, static_file, view, template, request, response
+from bottle import route, run, static_file, view, template, request, response, error
+import urllib
 import logging
 import requests
 import time
@@ -10,6 +11,13 @@ from twitlist import twitlist, atrest
 import config
 
 ########################
+# Errors
+@error(404)
+@error(502)
+@view('errors')
+def twitterErrors(error):
+    return {}
+
 # Routes
 @route('/static/<filename:path>')
 def static(filename):
@@ -59,8 +67,8 @@ def login():
 def generate():
     session = request.environ.get('beaker.session')
     #TODO: remove when done testing
-    #session["groups"] = None
-    #session.persist()
+    session["groups"] = None
+    session.persist()
     groups = session.get("groups")
     if groups is not None:
         bottle.redirect('/groups')
@@ -135,9 +143,13 @@ def makelist(group_id):
     user_oauth_token = session.get("user_oauth_token")
     user_oauth_secret = session.get("user_oauth_secret")
     screen_name = session.get("screen_name")
-    api = twitlist.TwitterRestAPI(oauth_token=user_oauth_token, oauth_secret=user_oauth_secret, cache=CACHE)
-    response = api.makelist(name, "Made by sweedlepipe.", userids)
-    url = "http://www.twitter.com%s" % (response["uri"])
+    api = twitlist.TwitterRestAPI(oauth_token=user_oauth_token, oauth_secret=user_oauth_secret)
+    try:
+        response = api.makelist(name, "Made by sweedlepipe.", userids)
+    except requests.HTTPError as e:
+        raise bottle.HTTPError(code=e.response.status_code, output="Twitter callout error", exception=e)
+        
+    url = "http://www.twitter.com%s" % (urllib.quote(response["uri"].encode('utf8')))
     bottle.redirect(url)
 
 
@@ -196,4 +208,4 @@ CACHE = atrest.Cache(atrest.FileBackend('/tmp/atrest_cache'), 3600)
 twitlist.TwitterOAuthHandler.config_oauth_handler(config.CONSUMER_KEY, config.CONSUMER_SECRET)
 application = SessionMiddleware(bottle.app(), session_opts)
 if __name__ == '__main__':
-    run(app=application, host='localhost', port=3000, server='gevent')
+    run(app=application, host='localhost', port=3000, reloader=True, server='gevent')
